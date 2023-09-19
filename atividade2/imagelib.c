@@ -1,13 +1,3 @@
-/*-------------------------------------------------------------
- *          UNIFAL - Universidade Federal de Alfenas.
- *           BACHARELADO EM CIENCIA DA COMPUTACAO.
- *  Trabalho: Imagem ASCII
- *  Disciplina: Processamento de Imagens
- *  Professor: Luiz Eduardo da Silva
- *  Aluno: Vinicius Eduardo de Souza Honorio
- *  Data: 01/05/2023
-*-------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,15 +10,30 @@
  * Image allocation and free routines
  *   nr = number of rows
  *   nc = number of columns
+ *   ml = max gray level
+ *   tp = type of image
  *-------------------------------------------------------------------------*/
-image img_alloc(int nr, int nc)
+image img_create(int nr, int nc, int ml, int tp)
 {
-    return (image)malloc(nr * nc * sizeof(int));
+    image img = malloc(sizeof(image *));
+    img->px = malloc(nr * nc * sizeof(int));
+    img->nr = nr;
+    img->nc = nc;
+    img->ml = ml;
+    img->tp = tp;
+    return img;
+}
+
+image img_clone(image In)
+{
+    return img_create(In->nr, In->nc, In->ml, In->tp);
 }
 
 int img_free(image Im)
 {
+    free(Im->px);
     free(Im);
+    return 0;
 }
 
 /*-------------------------------------------------------------------------
@@ -37,16 +42,16 @@ int img_free(image Im)
  *   name = image name file
  *   in = input image name
  *   out = output image name
- *   tp = image type (BW, GRAY, COLOR)
+ *   tpIn, tpOut = image type (BW, GRAY, COLOR)
  *-------------------------------------------------------------------------*/
-void img_name(char *name, char *in, char *out, int tp)
+void img_name(char *name, char *in, char *out, int tpIn, int tpOut)
 {
     char *ext[3] = {".pbm", ".pgm", ".ppm"};
-    char *p = strstr(name, ext[tp - 1]);
+    char *p = strstr(name, ext[tpIn - 1]);
     if (p)
         *p = 0;
-    sprintf(in, "%s%s", name, ext[tp - 1]);
-    sprintf(out, "%s-result%s", name, ext[tp - 1]);
+    sprintf(in, "%s%s", name, ext[tpIn - 1]);
+    sprintf(out, "%s-result%s", name, ext[tpOut - 1]);
 }
 
 /*-------------------------------------------------------------------------
@@ -57,15 +62,15 @@ void img_name(char *name, char *in, char *out, int tp)
  *   ml = max grayscale level
  *   tp = image type (1, 2 ou 3)
  *-------------------------------------------------------------------------*/
-void img_info(char *name, int nr, int nc, int ml, int tp)
+void img_info(char *name, image img)
 {
     printf("\nImage Informations:");
     printf("\n--------------------------\n");
     printf("Image file name.............: %s \n", name);
-    printf("Image type..................: P%d\n", tp);
-    printf("Number of rows..............: %d \n", nr);
-    printf("Number of columns...........: %d \n", nc);
-    printf("Max intensity level.........: %d \n\n", ml);
+    printf("Image type..................: P%d\n", img->tp);
+    printf("Number of rows..............: %d \n", img->nr);
+    printf("Number of columns...........: %d \n", img->nc);
+    printf("Max intensity level.........: %d \n\n", img->ml);
 }
 
 /*-------------------------------------------------------------------------
@@ -89,16 +94,13 @@ void errormsg(char *str, ...)
  * Params (in):
  *   name = image file name
  *   tp = image type (BW, GRAY or COLOR)
- * Params (out):
- *   nr = number of rows
- *   nc = number of columns
- *   ml = max grayscale level
  * Returns:
- *   image vector
+ *   image structure
  *-------------------------------------------------------------------------+*/
-image img_get(char *name, int *nr, int *nc, int *ml, int tp)
+image img_get(char *name, int tp)
 {
     char lines[100];
+    int nr, nc, ml;
     image img;
     FILE *fimg;
     ERROR((fimg = fopen(name, "r")) == NULL, errormsg("File open error: <%s>", name));
@@ -109,68 +111,65 @@ image img_get(char *name, int *nr, int *nc, int *ml, int tp)
     fgets(lines, 80, fimg);
     while (strchr(lines, '#'))
         fgets(lines, 80, fimg);
-    sscanf(lines, "%d %d", nc, nr);
+    sscanf(lines, "%d %d", &nc, &nr);
     if (tp != BW)
-        fscanf(fimg, "%d", ml);
+        fscanf(fimg, "%d", &ml);
     else
-        *ml = 1;
-    ERROR(*nc == 0 || *nr == 0 || *ml == 0, errormsg("Image dimensions error: <%s>", name));
-    img = img_alloc(*nr, *nc);
+        ml = 1;
+    ERROR(nc == 0 || nr == 0 || ml == 0, errormsg("Image dimensions error: <%s>", name));
+    img = img_create(nr, nc, ml, tp);
     ERROR(!img, errormsg("Image allocation error: %s\n\n img_get routine", name));
-    for (int i = 0; i < (*nr) * (*nc); i++)
+    for (int i = 0; i < nr * nc; i++)
         if (tp != COLOR)
         {
             int k;
             fscanf(fimg, "%d", &k);
-            ERROR(k > *ml, errormsg("Max pixel intensity int the image error: <%s>", name));
-            img[i] = k;
+            ERROR(k > ml, errormsg("Max pixel intensity in the image error: <%s>", name));
+            img->px[i] = k;
         }
         else
         {
             int r, g, b;
             fscanf(fimg, "%d %d %d", &r, &g, &b);
-            ERROR(r > *ml || r < 0 || g > *ml || g < 0 || b > *ml || b < 0,
-                  errormsg("Max intensity of color int the image error: <%s>", name));
-            img[i] = (r << 16) + (g << 8) + b;
+            ERROR(r > ml || r < 0 || g > ml || g < 0 || b > ml || b < 0,
+                  errormsg("Max intensity of color in the image error: <%s>", name));
+            img->px[i] = (r << 16) + (g << 8) + b;
         }
     fclose(fimg);
-    img_info(name, *nr, *nc, *ml, tp);
+    img_info(name, img);
     return img;
 }
 
 /*-------------------------------------------------------------------------
  * Write pnm image
  * Params:
- *   img = image
+ *   img = image structure
  *   name = image file name
- *   nr = number of rows
- *   nc = number of columns
- *   ml = max intensity level
  *   tp = image type (BW, GRAY or COLOR)
  *-------------------------------------------------------------------------*/
-void img_put(image img, char *name, int nr, int nc, int ml, int tp)
+void img_put(image img, char *name, int tp)
 {
     int count;
     FILE *fimg;
     ERROR((fimg = fopen(name, "wt")) == NULL, errormsg("Image creation error: <%s>", name));
     fprintf(fimg, "P%c\n", tp + '0');
     fputs(CREATOR, fimg);
-    fprintf(fimg, "%d  %d\n", nc, nr);
-    if (tp != 1)
-        fprintf(fimg, "%d\n", ml);
+    fprintf(fimg, "%d  %d\n", img->nc, img->nr);
+    if (tp != BW)
+        fprintf(fimg, "%d\n", img->ml);
     count = 0;
-    for (int i = 0; i < nr * nc; i++)
+    for (int i = 0; i < img->nr * img->nc; i++)
     {
         if (tp != COLOR)
         {
-            int x = img[i];
+            int x = img->px[i];
             fprintf(fimg, "%3d ", x);
         }
         else
         {
-            int r = (img[i] >> 16) & 0xFF;
-            int g = (img[i] >> 8) & 0xFF;
-            int b = img[i] & 0xFF;
+            int r = (img->px[i] >> 16) & 0xFF;
+            int g = (img->px[i] >> 8) & 0xFF;
+            int b = img->px[i] & 0xFF;
             fprintf(fimg, "%3d %3d %3d ", r, g, b);
         }
         count++;

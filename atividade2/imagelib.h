@@ -1,16 +1,11 @@
-/*-------------------------------------------------------------
- *          UNIFAL - Universidade Federal de Alfenas.
- *           BACHARELADO EM CIENCIA DA COMPUTACAO.
- *  Trabalho: Imagem ASCII
- *  Disciplina: Processamento de Imagens
- *  Professor: Luiz Eduardo da Silva
- *  Aluno: Vinicius Eduardo de Souza Honorio
- *  Data: 01/05/2023
-*-------------------------------------------------------------*/
-
 #define CREATOR "# CREATOR: Image Processing using C-Ansi - ByDu\n"
 
-typedef int *image;
+typedef struct
+{
+    int *px;        // pixels vector
+    int nr, nc, ml; // nr = n.rows, nc = n.columns, ml = max level
+    int tp;         // tp = type
+} * image;
 
 #define ERROR(x, y) \
     if (x)          \
@@ -24,14 +19,15 @@ enum
 };
 
 #if defined(_WIN32) || defined(__WIN64__) || defined(__CYGWIN__)
-#define VIEW "i_view32"
+#define VIEW "../utils/i_view32"
 #elif defined(__linux__)
 #define VIEW "eog"
 #endif
 
 void errormsg(char *, ...);
-image img_alloc(int, int);
+image img_create(int, int, int, int);
+image img_clone(image);
 int img_free(image);
-void img_name(char *name, char *in, char *out, int tp);
-image img_get(char *name, int *nr, int *nc, int *ml, int tp);
-void img_put(image img, char *name, int nr, int nc, int ml, int tp);
+void img_name(char *, char *, char *, int, int);
+image img_get(char *, int);
+void img_put(image, char *, int);

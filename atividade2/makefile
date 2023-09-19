@@ -4,7 +4,7 @@ CCFLAGS=-g
 LDFLAGS=-lm
 SOURCES=$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
-TARGET=ascii
+TARGET=decode
 
 all: $(TARGET)
 
@@ -18,4 +18,4 @@ $(TARGET): $(OBJECTS);\
     $(CC) $(CCFLAGS) -c $<
 
 clean:;\
-    rm -f *.o *-result.p*m $(TARGET);\
+    rm -f *.o *-*.pgm $(TARGET);\
